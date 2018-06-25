@@ -1,0 +1,70 @@
+[
+  {
+    "ParameterValue": "",
+    "ParameterKey": "EcsEndpoint"
+  },
+  {
+    "ParameterValue": "10.0.0.0/16",
+    "ParameterKey": "VpcCidrBlock"
+  },
+  {
+    "ParameterValue": "ecsInstanceRole",
+    "ParameterKey": "IamRoleInstanceProfile"
+  },
+  {
+    "ParameterValue": "0.0.0.0/0",
+    "ParameterKey": "SourceCidr"
+  },
+  {
+    "ParameterValue": "false",
+    "ParameterKey": "CreateElasticLoadBalancer"
+  },
+  {
+    "ParameterValue": "python",
+    "ParameterKey": "EcsClusterName"
+  },
+  {
+    "ParameterValue": "22",
+    "ParameterKey": "EcsPort"
+  },
+  {
+    "ParameterValue": "TCP:22/",
+    "ParameterKey": "ElbHealthCheckTarget"
+  },
+  {
+    "ParameterValue": "ecs",
+    "ParameterKey": "KeyName"
+  },
+  {
+    "ParameterValue": "2",
+    "ParameterKey": "AsgMaxSize"
+  },
+  {
+    "ParameterValue": "22",
+    "ParameterKey": "ElbPort"
+  },
+  {
+    "ParameterValue": "t2.micro",
+    "ParameterKey": "EcsInstanceType"
+  },
+  {
+    "ParameterValue": "10.0.0.0/24",
+    "ParameterKey": "SubnetCidrBlock1"
+  },
+  {
+    "ParameterValue": "ami-f3f8098c",
+    "ParameterKey": "EcsAmiId"
+  },
+  {
+    "ParameterValue": "ECSFirstRunTargetGroup",
+    "ParameterKey": "TargetGroupName"
+  },
+  {
+    "ParameterValue": "ap-northeast-1a,ap-northeast-1d,ap-northeast-1c",
+    "ParameterKey": "VpcAvailabilityZones"
+  },
+  {
+    "ParameterValue": "10.0.1.0/24",
+    "ParameterKey": "SubnetCidrBlock2"
+  }
+]
