@@ -1,0 +1,181 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Template for Creating Inspector Assessment And Schedule
+Parameters:
+  ResourceGroupTagKey:
+    Type: String
+    Default: "Inspector"
+    Description: Input Tag Key
+  ResourceGroupTagValue:
+    Type: String
+    Default: "true"
+    Description: Input Tag Value
+  EmailAddress:
+    Type: String
+    Default: sample@classmethod.jp
+    Description: Input Valid Email Address
+
+Resources:
+  MyInspectoryResourceGroup:
+    Type: AWS::Inspector::ResourceGroup
+    Properties:
+      ResourceGroupTags:
+        - Key: !Ref ResourceGroupTagKey
+          Value: !Ref ResourceGroupTagValue
+
+  MyInspectorTarget:
+    Type: AWS::Inspector::AssessmentTarget
+    Properties:
+      ResourceGroupArn: !Ref MyInspectoryResourceGroup
+
+  MyInspectorTemplate:
+    Type: AWS::Inspector::AssessmentTemplate
+    Properties:
+      AssessmentTargetArn: !Ref MyInspectorTarget
+      DurationInSeconds: 3600
+      RulesPackageArns:
+        # Common Vulnerabilities and Exposures
+        - arn:aws:inspector:ap-northeast-1:406045910587:rulespackage/0-gHP9oWNT
+        # CIS Operating System Security Configuration Benchmarks
+        - arn:aws:inspector:ap-northeast-1:406045910587:rulespackage/0-7WNjqgGu
+        # Security Best Practices
+        # - arn:aws:inspector:ap-northeast-1:406045910587:rulespackage/0-bBUQnxMq
+        # Runtime Behavior Analysis
+        # - arn:aws:inspector:ap-northeast-1:406045910587:rulespackage/0-knGBhqEu
+
+  EventsInvokeInspectorAssessmentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "events.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Policies: 
+        - 
+          PolicyName: "AllowInspectorAssessment"
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement: 
+              - 
+                Effect: "Allow"
+                Action:
+                  - "inspector:StartAssessmentRun"
+                Resource: "*"
+      Path: "/service-role/"
+
+  MyInspectorEventsWeekly:
+    Type: AWS::Events::Rule
+    Properties: 
+      Description: "Scheduled Inspector Assessment"
+      ScheduleExpression: "rate(7 days)"
+      State: "ENABLED"
+      Targets:
+        - Arn: !Ref MyInspectorTemplate
+          Id: "TargetInspectorTemplate"
+          RoleArn: !GetAtt EventsInvokeInspectorAssessmentRole.Arn
+          
+  InspectorSnsTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: InspectorTopic
+      Subscription:
+        - Endpoint: !Ref EmailAddress
+          Protocol: email
+
+  MySNSTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: My-statement-id1
+          Effect: Allow
+          Principal:
+            AWS: "arn:aws:iam::406045910587:root"
+          Action: 
+            - "SNS:Publish"
+          Resource: !Ref InspectorSnsTopic
+        - Sid: My-statement-id2
+          Effect: Allow
+          Principal:
+            AWS: "arn:aws:iam::406045910587:root"
+          Action: 
+            - "SNS:Subscribe"
+            - "SNS:Receive"
+          Resource: !Ref InspectorSnsTopic
+      Topics:
+        - !Ref InspectorSnsTopic
+
+  AmazonInspectorFullAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - "arn:aws:iam::aws:policy/AmazonInspectorFullAccess"
+ 
+  InspectorSubscribeToEventLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import cfnresponse
+          def handler(event, context):
+            try:
+              print(event)
+              params = dict([(k, v) for k, v in event['ResourceProperties'].items() if k != 'ServiceToken'])
+              # print(params)
+              client = boto3.client('inspector')
+              if event['RequestType'] == 'Create':
+                response_data = client.subscribe_to_event(**params)
+              if event['RequestType'] == 'Delete':
+                response_data = client.unsubscribe_from_event(**params)
+              if event['RequestType'] == 'Update':
+                old_params = dict([(k, v) for k, v in event['OldResourceProperties'].items() if k != 'ServiceToken'])
+                client.unsubscribe_from_event(**old_params)
+                response_data = client.subscribe_to_event(**params)
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+            except Exception as e:
+              cfnresponse.send(event, context, cfnresponse.FAILED, {})
+      Handler: index.handler
+      MemorySize: 128
+      Role: !GetAtt AmazonInspectorFullAccessRole.Arn
+      Runtime: python3.6
+      Timeout: 60
+
+  CustomInspectorSubscribeToRunStarted:
+    Type: Custom::InspectorSubscribeToEventLambda
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt InspectorSubscribeToEventLambda.Arn
+      event: "ASSESSMENT_RUN_STARTED"
+      resourceArn: !Ref MyInspectorTemplate
+      topicArn: !Ref InspectorSnsTopic
+      
+  CustomInspectorSubscribeToRunCompleted:
+    Type: Custom::InspectorSubscribeToEventLambda
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt InspectorSubscribeToEventLambda.Arn
+      event: "ASSESSMENT_RUN_COMPLETED"
+      resourceArn: !Ref MyInspectorTemplate
+      topicArn: !Ref InspectorSnsTopic
+
+Outputs:
+  MyInspectorTemplateArn:
+    Description: Information MyInspectorTemplate Arn
+    Value: !Ref MyInspectorTemplate
