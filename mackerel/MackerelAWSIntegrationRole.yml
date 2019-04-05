@@ -1,0 +1,216 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "IAM Assume Role for Mackerel"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Compute"
+        Parameters:
+          - AmazonEC2ReadOnlyAccess
+          - ECSReadOnlyAccess
+          - AWSLambdaReadOnlyAccess
+      - Label:
+          default: "Storage"
+        Parameters:
+          - AmazonS3ReadOnlyAccess
+      - Label:
+          default: "Database"
+        Parameters:
+          - AmazonRDSReadOnlyAccess
+          - AmazonDynamoDBReadOnlyAccess
+          - AmazonElastiCacheReadOnlyAccess
+          - AmazonRedshiftReadOnlyAccess
+      - Label:
+          default: "Networking & Content Delivery"
+        Parameters:
+          - CloudFrontReadOnlyAccess
+          - APIGatewayReadOnlyAccess
+      - Label:
+          default: "Analytics"
+        Parameters:
+          - AmazonKinesisReadOnlyAccess
+          - AmazonESReadOnlyAccess
+      - Label:
+          default: "Application Integration"
+        Parameters:
+          - AmazonSQSReadOnlyAccess
+      - Label:
+          default: "Management & Governance"
+        Parameters:
+          - CloudWatchReadOnlyAccess
+    ParameterLabels:
+      AmazonEC2ReadOnlyAccess:
+        default: "EC2, ELB (CLB), ALB, NLB"
+      ECSReadOnlyAccess:
+        default: "ECS"
+      AWSLambdaReadOnlyAccess:
+        default: "Lambda"
+      AmazonS3ReadOnlyAccess:
+        default: "S3"
+      AmazonRDSReadOnlyAccess:
+        default: "RDS"
+      AmazonDynamoDBReadOnlyAccess:
+        default: "DynamoDB"
+      AmazonElastiCacheReadOnlyAccess:
+        default: "ElastiCache"
+      AmazonRedshiftReadOnlyAccess:
+        default: "Redshift"
+      CloudFrontReadOnlyAccess:
+        default: "CloudFront"
+      APIGatewayReadOnlyAccess:
+        default: "API Gateway"
+      AmazonKinesisReadOnlyAccess:
+        default: "Kinesis"
+      AmazonESReadOnlyAccess:
+        default: "ES"
+      AmazonSQSReadOnlyAccess:
+        default: "SQS"
+      CloudWatchReadOnlyAccess:
+        default: "CloudWatch"
+Parameters:
+  AmazonEC2ReadOnlyAccess: 
+    Description: Monitoring EC2
+    Type: String
+    Default: yes
+    AllowedValues: [yes, no]
+  AmazonRDSReadOnlyAccess: 
+    Description: Monitoring RDS
+    Type: String
+    Default: yes
+    AllowedValues: [yes, no]
+  AmazonElastiCacheReadOnlyAccess: 
+    Description: Monitoring ElastiCache
+    Type: String
+    Default: yes
+    AllowedValues: [yes, no]
+  AmazonRedshiftReadOnlyAccess: 
+    Description: Monitoring Redshift
+    Type: String
+    Default: no
+    AllowedValues: [yes, no]
+  AWSLambdaReadOnlyAccess: 
+    Description: Monitoring AWS Lambda
+    Type: String
+    Default: no
+    AllowedValues: [yes, no]
+  AmazonSQSReadOnlyAccess:
+    Description: Monitoring SQS
+    Type: String
+    Default: no
+    AllowedValues: [yes, no]
+  AmazonDynamoDBReadOnlyAccess:
+    Description: Monitoring DynamoDB
+    Type: String
+    Default: no
+    AllowedValues: [yes, no]
+  CloudFrontReadOnlyAccess:
+    Description: Monitoring CloudFront
+    Type: String
+    Default: no
+    AllowedValues: [yes, no]
+  APIGatewayReadOnlyAccess:
+    Description: Monitoring API Gateway (apigateway:GET, apigateway:OPTIONS)
+    Type: String
+    Default: no
+    AllowedValues: [yes, no]
+  AmazonKinesisReadOnlyAccess:
+    Description: Monitoring Kinesis
+    Type: String
+    Default: no
+    AllowedValues: [yes, no]
+  AmazonS3ReadOnlyAccess:
+    Description: Monitoring S3
+    Type: String
+    Default: no
+    AllowedValues: [yes, no]
+  AmazonESReadOnlyAccess:
+    Description: Monitoring ES
+    Type: String
+    Default: no
+    AllowedValues: [yes, no]
+  ECSReadOnlyAccess:
+    Description: Monitoring ECS (ecs:Describe*, ecs:List*)
+    Type: String
+    Default: no
+    AllowedValues: [yes, no]
+  CloudWatchReadOnlyAccess:
+    Description: Monitoring CloudWatch (if CloudFront only, API Gateway only, Kinesis only, S3 only, ES only, ECS only)
+    Type: String
+    Default: no
+    AllowedValues: [yes, no]
+Conditions:
+  AmazonEC2ReadOnlyAccess: !Equals [ !Ref AmazonEC2ReadOnlyAccess, yes ]
+  AmazonRDSReadOnlyAccess: !Equals [ !Ref AmazonRDSReadOnlyAccess, yes ]
+  AmazonElastiCacheReadOnlyAccess: !Equals [ !Ref AmazonElastiCacheReadOnlyAccess, yes ]
+  AmazonRedshiftReadOnlyAccess: !Equals [ !Ref AmazonRedshiftReadOnlyAccess, yes ]
+  AWSLambdaReadOnlyAccess: !Equals [ !Ref AWSLambdaReadOnlyAccess, yes ]
+  AmazonSQSReadOnlyAccess: !Equals [ !Ref AmazonSQSReadOnlyAccess, yes ]
+  AmazonDynamoDBReadOnlyAccess: !Equals [ !Ref AmazonDynamoDBReadOnlyAccess, yes ]
+  CloudFrontReadOnlyAccess: !Equals [ !Ref CloudFrontReadOnlyAccess, yes ]
+  APIGatewayReadOnlyAccess: !Equals [ !Ref APIGatewayReadOnlyAccess, yes ]
+  AmazonKinesisReadOnlyAccess: !Equals [ !Ref AmazonKinesisReadOnlyAccess, yes ]
+  AmazonS3ReadOnlyAccess: !Equals [ !Ref AmazonS3ReadOnlyAccess, yes ]
+  AmazonESReadOnlyAccess: !Equals [ !Ref AmazonESReadOnlyAccess, yes ]
+  ECSReadOnlyAccess: !Equals [ !Ref ECSReadOnlyAccess, yes ]
+  CloudWatchReadOnlyAccess: !Equals [ !Ref CloudWatchReadOnlyAccess, yes ]
+Resources: 
+  MackerelAWSIntegrationRole: 
+    Type: AWS::IAM::Role
+    Properties: 
+      RoleName: "MackerelAWSIntegrationRole"
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+        - Action: "sts:AssumeRole"
+          Effect: "Allow"
+          Principal: 
+              AWS: "arn:aws:iam::217452466226:root"
+          Condition:
+            StringEquals:
+              sts:ExternalId: "Mackerel-AWS-Integration"
+      ManagedPolicyArns: 
+        - !If [AmazonEC2ReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess", !Ref "AWS::NoValue"]
+        - !If [AmazonRDSReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess", !Ref "AWS::NoValue"]
+        - !If [AmazonElastiCacheReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonElastiCacheReadOnlyAccess", !Ref "AWS::NoValue"]
+        - !If [AmazonRedshiftReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonRedshiftReadOnlyAccess", !Ref "AWS::NoValue"]
+        - !If [AWSLambdaReadOnlyAccess, "arn:aws:iam::aws:policy/AWSLambdaReadOnlyAccess", !Ref "AWS::NoValue"]
+        - !If [AmazonSQSReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonSQSReadOnlyAccess", !Ref "AWS::NoValue"]
+        - !If [AmazonDynamoDBReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess", !Ref "AWS::NoValue"]
+        - !If [CloudFrontReadOnlyAccess, "arn:aws:iam::aws:policy/CloudFrontReadOnlyAccess", !Ref "AWS::NoValue"]
+        - !If [AmazonKinesisReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonKinesisReadOnlyAccess", !Ref "AWS::NoValue"]
+        - !If [AmazonS3ReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess", !Ref "AWS::NoValue"]
+        - !If [AmazonESReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonESReadOnlyAccess", !Ref "AWS::NoValue"]
+        - !If [CloudWatchReadOnlyAccess, "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess", !Ref "AWS::NoValue"]
+  APIGatewayGetPolicy:
+    Condition: APIGatewayReadOnlyAccess
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyName: "APIGatewayGetPolicy"
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: Allow
+            Action:
+              - apigateway:GET
+              - apigateway:OPTIONS
+            Resource: arn:aws:apigateway:ap-northeast-1::/*
+      Roles: 
+        - !Ref MackerelAWSIntegrationRole
+  ECSDescribePolicy:
+    Condition: ECSReadOnlyAccess
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyName: "ECSDescribePolicy"
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: Allow
+            Action:
+              - ecs:Describe*
+              - ecs:List*
+            Resource: "*"
+      Roles: 
+        - !Ref MackerelAWSIntegrationRole
+Outputs:
+  MackerelAWSIntegrationRoleArn:
+    Value: !GetAtt MackerelAWSIntegrationRole.Arn
