@@ -4,6 +4,10 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
+          default: "External ID"
+        Parameters:
+          - ExternalId
+      - Label:
           default: "Compute"
         Parameters:
           - AmazonEC2ReadOnlyAccess
@@ -33,12 +37,19 @@ Metadata:
       - Label:
           default: "Application Integration"
         Parameters:
+          - AWSStepFunctionsReadOnlyAccess
           - AmazonSQSReadOnlyAccess
+      - Label:
+          default: "Customer Engagement"
+        Parameters:
+          - AmazonSESReadOnlyAccess
       - Label:
           default: "Management & Governance"
         Parameters:
           - CloudWatchReadOnlyAccess
     ParameterLabels:
+      ExternalId:
+        default: "Mackerel AWS Integration External Id"
       AmazonEC2ReadOnlyAccess:
         default: "EC2, ELB (CLB), ALB, NLB"
       ECSReadOnlyAccess:
@@ -65,30 +76,38 @@ Metadata:
         default: "ES"
       AmazonSQSReadOnlyAccess:
         default: "SQS"
+      AmazonSESReadOnlyAccess:
+        default: "SES"
+      AWSStepFunctionsReadOnlyAccess:
+        default: "Step Functions"
       CloudWatchReadOnlyAccess:
         default: "CloudWatch"
 Parameters:
-  AmazonEC2ReadOnlyAccess: 
+  ExternalId:
+    Description: Please update External ID (https://mackerel.io/my?tab=awsIntegration)
+    Default: Mackerel-AWS-Integration
+    Type: String
+  AmazonEC2ReadOnlyAccess:
     Description: Monitoring EC2
     Type: String
     Default: yes
     AllowedValues: [yes, no]
-  AmazonRDSReadOnlyAccess: 
+  AmazonRDSReadOnlyAccess:
     Description: Monitoring RDS
     Type: String
     Default: yes
     AllowedValues: [yes, no]
-  AmazonElastiCacheReadOnlyAccess: 
+  AmazonElastiCacheReadOnlyAccess:
     Description: Monitoring ElastiCache
     Type: String
     Default: yes
     AllowedValues: [yes, no]
-  AmazonRedshiftReadOnlyAccess: 
+  AmazonRedshiftReadOnlyAccess:
     Description: Monitoring Redshift
     Type: String
     Default: no
     AllowedValues: [yes, no]
-  AWSLambdaReadOnlyAccess: 
+  AWSLambdaReadOnlyAccess:
     Description: Monitoring AWS Lambda
     Type: String
     Default: no
@@ -133,8 +152,18 @@ Parameters:
     Type: String
     Default: no
     AllowedValues: [yes, no]
+  AmazonSESReadOnlyAccess:
+    Description: Monitoring SES (ses:Describe*)
+    Type: String
+    Default: no
+    AllowedValues: [yes, no]
+  AWSStepFunctionsReadOnlyAccess:
+    Description: Monitoring Step Functions
+    Type: String
+    Default: no
+    AllowedValues: [yes, no]
   CloudWatchReadOnlyAccess:
-    Description: Monitoring CloudWatch (if CloudFront only, API Gateway only, Kinesis only, S3 only, ES only, ECS only)
+    Description: Monitoring CloudWatch (if CloudFront only, API Gateway only, Kinesis only, S3 only, ES only, ECS only, SES only, Step Functions only)
     Type: String
     Default: no
     AllowedValues: [yes, no]
@@ -152,23 +181,25 @@ Conditions:
   AmazonS3ReadOnlyAccess: !Equals [ !Ref AmazonS3ReadOnlyAccess, yes ]
   AmazonESReadOnlyAccess: !Equals [ !Ref AmazonESReadOnlyAccess, yes ]
   ECSReadOnlyAccess: !Equals [ !Ref ECSReadOnlyAccess, yes ]
+  AmazonSESReadOnlyAccess: !Equals [ !Ref AmazonSESReadOnlyAccess, yes ]
+  AWSStepFunctionsReadOnlyAccess: !Equals [ !Ref AWSStepFunctionsReadOnlyAccess, yes ]
   CloudWatchReadOnlyAccess: !Equals [ !Ref CloudWatchReadOnlyAccess, yes ]
-Resources: 
-  MackerelAWSIntegrationRole: 
+Resources:
+  MackerelAWSIntegrationRole:
     Type: AWS::IAM::Role
-    Properties: 
+    Properties:
       RoleName: "MackerelAWSIntegrationRole"
-      AssumeRolePolicyDocument: 
+      AssumeRolePolicyDocument:
         Version: "2012-10-17"
-        Statement: 
+        Statement:
         - Action: "sts:AssumeRole"
           Effect: "Allow"
-          Principal: 
+          Principal:
               AWS: "arn:aws:iam::217452466226:root"
           Condition:
             StringEquals:
-              sts:ExternalId: "Mackerel-AWS-Integration"
-      ManagedPolicyArns: 
+              sts:ExternalId: !Ref ExternalId
+      ManagedPolicyArns:
         - !If [AmazonEC2ReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess", !Ref "AWS::NoValue"]
         - !If [AmazonRDSReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess", !Ref "AWS::NoValue"]
         - !If [AmazonElastiCacheReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonElastiCacheReadOnlyAccess", !Ref "AWS::NoValue"]
@@ -180,36 +211,51 @@ Resources:
         - !If [AmazonKinesisReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonKinesisReadOnlyAccess", !Ref "AWS::NoValue"]
         - !If [AmazonS3ReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess", !Ref "AWS::NoValue"]
         - !If [AmazonESReadOnlyAccess, "arn:aws:iam::aws:policy/AmazonESReadOnlyAccess", !Ref "AWS::NoValue"]
+        - !If [AWSStepFunctionsReadOnlyAccess, "arn:aws:iam::aws:policy/AWSStepFunctionsReadOnlyAccess", !Ref "AWS::NoValue"]
         - !If [CloudWatchReadOnlyAccess, "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess", !Ref "AWS::NoValue"]
   APIGatewayGetPolicy:
     Condition: APIGatewayReadOnlyAccess
     Type: AWS::IAM::Policy
-    Properties: 
+    Properties:
       PolicyName: "APIGatewayGetPolicy"
-      PolicyDocument: 
+      PolicyDocument:
         Version: "2012-10-17"
-        Statement: 
+        Statement:
           - Effect: Allow
             Action:
               - apigateway:GET
               - apigateway:OPTIONS
             Resource: arn:aws:apigateway:ap-northeast-1::/*
-      Roles: 
+      Roles:
         - !Ref MackerelAWSIntegrationRole
   ECSDescribePolicy:
     Condition: ECSReadOnlyAccess
     Type: AWS::IAM::Policy
-    Properties: 
+    Properties:
       PolicyName: "ECSDescribePolicy"
-      PolicyDocument: 
+      PolicyDocument:
         Version: "2012-10-17"
-        Statement: 
+        Statement:
           - Effect: Allow
             Action:
               - ecs:Describe*
               - ecs:List*
             Resource: "*"
-      Roles: 
+      Roles:
+        - !Ref MackerelAWSIntegrationRole
+  SESDescribePolicy:
+    Condition: AmazonSESReadOnlyAccess
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: "SESDescribePolicy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ses:Describe*
+            Resource: "*"
+      Roles:
         - !Ref MackerelAWSIntegrationRole
 Outputs:
   MackerelAWSIntegrationRoleArn:
