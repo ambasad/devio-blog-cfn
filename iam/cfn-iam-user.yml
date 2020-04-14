@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  UserName:
+    Type: String
+    Default: "UserA"
+
+  RoleName:
+    Type: String
+    Default: "RoleA"
+
+  KmsKeyId:
+    Type: String
+    Default: ""
+
+Conditions: 
+  UseKmsKey: !Not [!Equals [!Ref KmsKeyId, ""]]
+
+Resources:
+
+  # ユーザー用管理ポリシー
+  IAMManagedPolicyAssumeRole:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: access-assume-role
+      Path: /
+      PolicyDocument: !Sub |
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "AssumeRole",
+                    "Effect": "Allow",
+                    "Action": "sts:AssumeRole",
+                    "Resource": "arn:aws:iam::${AWS::AccountId}:role/${RoleName}"
+                }
+            ]
+        }
+
+  # ユーザー
+  IAMUser1:
+    Type: AWS::IAM::User
+    Properties:
+      Path: /
+      UserName: !Ref UserName
+      ManagedPolicyArns:
+        - !Ref IAMManagedPolicyAssumeRole
+
+  # ロール
+  IAMRole1:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      RoleName: !Ref RoleName
+      AssumeRolePolicyDocument: !Sub |
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": "sts:AssumeRole",
+                    "Principal": {"AWS":"${IAMUser1.Arn}"}
+                }
+            ]
+        }
+      MaxSessionDuration: 3600
+
+  # API AccessKeyの作成
+  IAMAccessKeyUser1:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref IAMUser1
+
+  # 認証情報をSecretsManagerに保持
+  SecretUser1:
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Name: !Sub ${IAMUser1}-credentials
+      KmsKeyId: !If [UseKmsKey, !Ref KmsKeyId, !Ref "AWS::NoValue"]
+      SecretString: !Sub |
+        [${IAMUser1}]
+        aws_access_key_id = ${IAMAccessKeyUser1}
+        aws_secret_access_key = ${IAMAccessKeyUser1.SecretAccessKey}
+
+  # 認証情報をSecretsManagerに保持
+  IAMRole1Config:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value: !Sub |
+        [profile ${IAMRole1}]
+        role_arn = ${IAMRole1.Arn}
+        source_profile = ${IAMUser1}
+
+Outputs:
+  User1Credentials:
+    Value: !Sub |
+      aws secretsmanager get-secret-value --secret-id ${SecretUser1} --query 'SecretString' --output text >> ~/.aws/credentials
+  User1Config:
+    Value: !Sub |
+      aws ssm get-parameters --names ${IAMRole1Config} --query 'Parameters[].Value' --output text >> ~/.aws/config
+  User1SwitchRole:
+    Value: !Sub |
+      aws sts get-caller-identity --profile ${IAMUser1}
+      aws sts get-caller-identity --profile ${IAMRole1}
