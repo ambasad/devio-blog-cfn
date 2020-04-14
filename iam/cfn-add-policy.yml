@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  Roles:
+    Type: CommaDelimitedList
+    Description: Names of existing Roles you want to add to the newly created Managed Policy
+
+Resources:
+
+  # ロール用管理ポリシー
+  IAMManagedPolicyAccessSameProjectTeam:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Path: /
+      PolicyDocument: |
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "AllActionS3",
+                    "Effect": "Allow",
+                    "Action": "s3:*",
+                    "Resource": "*"
+                }
+            ]
+        }
+      Roles: !Ref Roles
