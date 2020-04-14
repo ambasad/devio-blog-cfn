@@ -1,2 +1,1 @@
-
-https://dev.classmethod.jp/author/kajiwara-taishi/
+https://dev.classmethod.jp/articles/aws-cli-cfn-user-role-add/
